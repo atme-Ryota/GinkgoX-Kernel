@@ -30,7 +30,7 @@ jobs:
           export SUBARCH=arm64
           export PATH=$PWD/clang/bin:$PATH
 
-          make O=out CC=clang ginkgo-perf_defconfig
+          make O=out ARCH=arm64 vendor/ginkgo-perf_defconfig
 
           make -j$(nproc) \
             O=out \
