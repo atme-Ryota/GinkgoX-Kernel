@@ -8,38 +8,74 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Source
+        uses: actions/checkout@v4
 
-      - name: Install packages
+      - name: Install Dependencies
         run: |
           sudo apt update
           sudo apt install -y \
-            bc bison flex \
+            bc \
+            bison \
             build-essential \
-            curl git zip unzip \
-            libssl-dev libelf-dev \
-            python3
+            ccache \
+            curl \
+            flex \
+            git \
+            libelf-dev \
+            libssl-dev \
+            lld \
+            llvm \
+            python3 \
+            unzip \
+            zip
 
       - name: Clone Proton Clang
         run: |
           git clone --depth=1 https://github.com/kdrag0n/proton-clang clang
 
-      - name: Build
+      - name: Debug Repository
+        run: |
+          echo "Current directory:"
+          pwd
+
+          echo "Repository files:"
+          ls
+
+          echo "Configs:"
+          ls arch/arm64/configs
+
+          echo "Vendor configs:"
+          ls arch/arm64/configs/vendor || true
+
+          echo "Searching defconfig..."
+          find arch -name "*ginkgo*defconfig"
+
+      - name: Build Kernel
         run: |
           export ARCH=arm64
           export SUBARCH=arm64
           export PATH=$PWD/clang/bin:$PATH
 
-          make O=out ARCH=arm64 vendor/ginkgo-perf_defconfig
+          make O=out \
+            ARCH=arm64 \
+            CC=clang \
+            LLVM=1 \
+            LLVM_IAS=1 \
+            vendor/ginkgo-perf_defconfig
 
           make -j$(nproc) \
             O=out \
+            ARCH=arm64 \
             CC=clang \
             LLVM=1 \
             LLVM_IAS=1
 
-      - name: Upload
+      - name: Upload Image
         uses: actions/upload-artifact@v4
         with:
           name: GinkgoX-Kernel
-          path: out/arch/arm64/boot/*
+          path: |
+            out/arch/arm64/boot/Image*
+            out/arch/arm64/boot/dts/**/*.dtb
+            out/arch/arm64/boot/dts/**/*.dtbo
