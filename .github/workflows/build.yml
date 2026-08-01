@@ -1,0 +1,45 @@
+name: Build GinkgoX Kernel
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install packages
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            bc bison flex \
+            build-essential \
+            curl git zip unzip \
+            libssl-dev libelf-dev \
+            python3
+
+      - name: Clone Proton Clang
+        run: |
+          git clone --depth=1 https://github.com/kdrag0n/proton-clang clang
+
+      - name: Build
+        run: |
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export PATH=$PWD/clang/bin:$PATH
+
+          make O=out CC=clang ginkgo-perf_defconfig
+
+          make -j$(nproc) \
+            O=out \
+            CC=clang \
+            LLVM=1 \
+            LLVM_IAS=1
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: GinkgoX-Kernel
+          path: out/arch/arm64/boot/*
