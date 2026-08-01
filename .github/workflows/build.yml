@@ -8,74 +8,52 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout Source
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install Dependencies
+      - name: Install packages
         run: |
           sudo apt update
           sudo apt install -y \
-            bc \
-            bison \
-            build-essential \
-            ccache \
-            curl \
-            flex \
-            git \
-            libelf-dev \
-            libssl-dev \
-            lld \
-            llvm \
-            python3 \
-            unzip \
-            zip
+            bc bison flex build-essential \
+            curl git zip unzip \
+            libssl-dev libelf-dev \
+            python3
 
       - name: Clone Proton Clang
         run: |
           git clone --depth=1 https://github.com/kdrag0n/proton-clang clang
 
-      - name: Debug Repository
+      - name: Clone GCC 64
         run: |
-          echo "Current directory:"
-          pwd
+          git clone --depth=1 https://github.com/mvaisakh/gcc-arm64 gcc64
 
-          echo "Repository files:"
-          ls
-
-          echo "Configs:"
-          ls arch/arm64/configs
-
-          echo "Vendor configs:"
-          ls arch/arm64/configs/vendor || true
-
-          echo "Searching defconfig..."
-          find arch -name "*ginkgo*defconfig"
+      - name: Clone GCC 32
+        run: |
+          git clone --depth=1 https://github.com/mvaisakh/gcc-arm gcc32
 
       - name: Build Kernel
         run: |
           export ARCH=arm64
           export SUBARCH=arm64
-          export PATH=$PWD/clang/bin:$PATH
 
-          make O=out \
-            ARCH=arm64 \
-            CC=clang \
-            LLVM=1 \
-            LLVM_IAS=1 \
-            vendor/ginkgo-perf_defconfig
+          export PATH=$PWD/clang/bin:$PWD/gcc64/bin:$PWD/gcc32/bin:$PATH
+
+          export CC=clang
+          export CROSS_COMPILE=aarch64-elf-
+          export CROSS_COMPILE_ARM32=arm-eabi-
+
+          make O=out vendor/ginkgo-perf_defconfig
 
           make -j$(nproc) \
             O=out \
-            ARCH=arm64 \
             CC=clang \
             LLVM=1 \
-            LLVM_IAS=1
+            LLVM_IAS=1 \
+            CROSS_COMPILE=aarch64-elf- \
+            CROSS_COMPILE_ARM32=arm-eabi-
 
-      - name: Upload Image
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: GinkgoX-Kernel
-          path: |
-            out/arch/arm64/boot/Image*
-            out/arch/arm64/boot/dts/**/*.dtb
-            out/arch/arm64/boot/dts/**/*.dtbo
+          path: out/arch/arm64/boot/*
